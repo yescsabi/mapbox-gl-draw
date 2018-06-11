@@ -3,6 +3,7 @@ const doubleClickZoom = require('../lib/double_click_zoom');
 const Constants = require('../constants');
 const isEventAtCoordinates = require('../lib/is_event_at_coordinates');
 const createVertex = require('../lib/create_vertex');
+const lineDistance = require('@turf/line-distance');
 
 const DrawPolygon = {};
 
@@ -87,10 +88,61 @@ DrawPolygon.onStop = function(state) {
   }
 };
 
+function createGeoJSONCircle(center, radiusInKm, parentId, points = 64) {
+  const coords = {
+    latitude: center[1],
+    longitude: center[0],
+  };
+
+  const km = radiusInKm;
+
+  const ret = [];
+  const distanceX = km / (111.320 * Math.cos((coords.latitude * Math.PI) / 180));
+  const distanceY = km / 110.574;
+
+  let theta;
+  let x;
+  let y;
+  for (let i = 0; i < points; i += 1) {
+    theta = (i / points) * (2 * Math.PI);
+    x = distanceX * Math.cos(theta);
+    y = distanceY * Math.sin(theta);
+
+    ret.push([coords.longitude + x, coords.latitude + y]);
+  }
+  ret.push(ret[0]);
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [ret]
+    },
+    properties: {
+      parent: parentId
+    }
+  };
+}
+
 DrawPolygon.toDisplayFeatures = function(state, geojson, display) {
   const isActivePolygon = geojson.properties.id === state.polygon.id;
   geojson.properties.active = (isActivePolygon) ? Constants.activeStates.ACTIVE : Constants.activeStates.INACTIVE;
-  if (!isActivePolygon) return display(geojson);
+  if (!isActivePolygon) {
+    if (geojson.properties.subType && geojson.properties.subType == 'circle') {
+
+      const center = geojson.geometry.coordinates[0];
+      const radiusInKm = lineDistance(geojson, 'kilometers');
+      const circleFeature = createGeoJSONCircle(center, radiusInKm, geojson.properties.id);
+      circleFeature.properties.meta = Constants.meta.FEATURE/*'radius'*/;
+      circleFeature.properties.active = geojson.properties.active;
+      //NOTE: should this be .parent instead?
+      circleFeature.properties.id = geojson.properties.id;
+
+      return display(circleFeature);
+    } else {
+      return display(geojson);
+    }
+  }
 
   // Don't render a polygon until it has two positions
   // (and a 3rd which is just the first repeated)

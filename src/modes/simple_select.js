@@ -5,6 +5,7 @@ const StringSet = require('../lib/string_set');
 const doubleClickZoom = require('../lib/double_click_zoom');
 const moveFeatures = require('../lib/move_features');
 const Constants = require('../constants');
+const lineDistance = require('@turf/line-distance');
 
 const SimpleSelect = {};
 
@@ -287,10 +288,66 @@ SimpleSelect.onMouseUp = function(state, e) {
   this.stopExtendedInteractions(state);
 };
 
+function createGeoJSONCircle(center, radiusInKm, parentId, points = 64) {
+  const coords = {
+    latitude: center[1],
+    longitude: center[0],
+  };
+
+  const km = radiusInKm;
+
+  const ret = [];
+  const distanceX = km / (111.320 * Math.cos((coords.latitude * Math.PI) / 180));
+  const distanceY = km / 110.574;
+
+  let theta;
+  let x;
+  let y;
+  for (let i = 0; i < points; i += 1) {
+    theta = (i / points) * (2 * Math.PI);
+    x = distanceX * Math.cos(theta);
+    y = distanceY * Math.sin(theta);
+
+    ret.push([coords.longitude + x, coords.latitude + y]);
+  }
+  ret.push(ret[0]);
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [ret]
+    },
+    properties: {
+      parent: parentId
+    }
+  };
+}
+
 SimpleSelect.toDisplayFeatures = function(state, geojson, display) {
   geojson.properties.active = (this.isSelected(geojson.properties.id)) ?
     Constants.activeStates.ACTIVE : Constants.activeStates.INACTIVE;
-  display(geojson);
+  if (!geojson.properties.subType || geojson.properties.subType != 'circle' || geojson.properties.active == Constants.activeStates.ACTIVE) {
+    display(geojson);
+  } else {
+    /*console.log("don't display inactive line for circle");*/
+  }
+
+  /*console.log('SimpleSelect.toDisplayFeatures');
+  console.log(geojson);*/
+
+  if (geojson.properties.subType && geojson.properties.subType == 'circle') {
+    const center = geojson.geometry.coordinates[0];
+    const radiusInKm = lineDistance(geojson, 'kilometers');
+    const circleFeature = createGeoJSONCircle(center, radiusInKm, geojson.id);
+    circleFeature.properties.meta = Constants.meta.FEATURE/*'radius'*/;
+    circleFeature.properties.active = geojson.properties.active;
+    //NOTE: should this be .parent instead?
+    circleFeature.properties.id = geojson.properties.id;
+
+    display(circleFeature);
+  }
+
   this.fireActionable();
   if (geojson.properties.active !== Constants.activeStates.ACTIVE ||
     geojson.geometry.type === Constants.geojsonTypes.POINT) return;

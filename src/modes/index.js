@@ -4,7 +4,8 @@ const modes = [
   'direct_select',
   'draw_point',
   'draw_polygon',
-  'draw_line_string'
+  'draw_line_string',
+  'draw_circle'
 ];
 
 module.exports = modes.reduce((m, k) => {
@@ -18,5 +19,6 @@ module.exports = {
   draw_point: require('./draw_point'),
   draw_polygon: require('./draw_polygon'),
   draw_line_string: require('./draw_line_string'),
+  draw_circle: require('./draw_circle')
 };
 

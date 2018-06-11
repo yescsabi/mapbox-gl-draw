@@ -140,6 +140,8 @@ module.exports = function(ctx) {
       changeMode(Constants.modes.DRAW_LINE_STRING);
     } else if (event.keyCode === 51 && ctx.options.controls.polygon) {
       changeMode(Constants.modes.DRAW_POLYGON);
+    } else if (event.keyCode === 52 && ctx.options.controls.draw_circle) {
+      changeMode(Constants.modes.DRAW_CIRCLE);
     }
   };
 

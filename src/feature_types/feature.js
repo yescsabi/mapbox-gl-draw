@@ -57,6 +57,13 @@ Feature.prototype.internal = function(mode) {
     }
   }
 
+  if (this.properties.subType) {
+    properties.subType = this.properties.subType;
+  }
+  if (this.properties.radius) {
+    properties.radius = this.properties.radius;
+  }
+
   return {
     type: Constants.geojsonTypes.FEATURE,
     properties: properties,
